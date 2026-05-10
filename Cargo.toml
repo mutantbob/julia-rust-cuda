@@ -1,0 +1,20 @@
+[package]
+name = "julia-rust-cuda"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+
+[dependencies.cuda-core]
+git = "https://github.com/NVlabs/cuda-oxide.git"
+#path = "../../../vendor/cuda-oxide/crates/cuda-core"
+
+[dependencies.cuda-host]
+git = "https://github.com/NVlabs/cuda-oxide.git"
+#path = "../../../vendor/cuda-oxide/crates/cuda-host"
+
+[dependencies.cuda-device]
+git = "https://github.com/NVlabs/cuda-oxide.git"
+#path = "../../../vendor/cuda-oxide/crates/cuda-device"
