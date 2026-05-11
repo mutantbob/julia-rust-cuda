@@ -1,9 +1,14 @@
+use crate::exp::MyComplex;
 use cuda_core::{CudaContext, DeviceBuffer, LaunchConfig};
 use cuda_device::{kernel, thread, DisjointSlice};
 use cuda_host::{cuda_launch, load_kernel_module};
 use num_complex::{Complex, Complex32};
 use std::fs::File;
 use std::io::Write;
+
+// type MyComplex = Complex32;
+
+pub mod exp;
 
 pub struct JuliaGrid {
     pub ncols: usize,
@@ -27,7 +32,7 @@ impl JuliaGrid {
     }
 }
 
-pub fn escaped(z: &Complex32) -> bool {
+pub fn escaped(z: &MyComplex) -> bool {
     z.re < -2.0 || z.re > 2.0 || z.im < -2.0 || z.im > 2.0
 }
 
@@ -59,27 +64,36 @@ pub fn julia(
         let row = idx.get() / ncols;
         let (x, y) = grid.xy_for(col, row);
 
-        let c = Complex32::new(cx, cy);
-        let z = Complex32::new(x, y);
+        let c = MyComplex::new(cx, cy);
+        let z = MyComplex::new(x, y);
         *rval = count_julia(z, c, COUNT);
     }
 }
 
-pub fn count_julia(z: Complex32, c: Complex32, max_iter: u32) -> u32 {
-    let Complex32 { re: x, im: y } = z;
-    let mut z = Complex32::new(x, y);
+pub fn count_julia(mut z: MyComplex, c: MyComplex, max_iter: u32) -> u32 {
     for i in 0..max_iter {
         if escaped(&z) {
             // println!("escaped {z:?} after {i} cycles");
             // return (z.re.abs() * 64.0) as _;
             return i;
         }
-        let x1 = z.re * z.re - z.im * z.im + c.re;
-        let y1 = z.re * z.im + z.im * z.re + c.im;
-        z = Complex::new(x1, y1);
+        z = julia_one_iter(&c, &z);
+
+        // let tmp = std::ops::Mul::mul(z, z);
+        // z = z*z+c;
     }
 
     max_iter
+}
+
+fn julia_one_iter(c: &MyComplex, z: &MyComplex) -> MyComplex {
+    z * z + c
+}
+
+fn julia_one_iter_orig(c: &Complex32, z: &Complex32) -> Complex32 {
+    let x1 = z.re * z.re - z.im * z.im + c.re;
+    let y1 = z.re * z.im + z.im * z.re + c.im;
+    Complex::new(x1, y1)
 }
 
 fn main() {
@@ -154,12 +168,12 @@ fn on_gpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
 }
 
 fn on_cpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
-    let c = Complex32::new(cx, cy);
+    let c = MyComplex::new(cx, cy);
     (0..grid.nrows)
         .flat_map(|row| {
             (0..grid.ncols).map(move |col| {
                 let (x, y) = grid.xy_for(col, row);
-                count_julia(Complex::new(x, y), c, 255)
+                count_julia(MyComplex::new(x, y), c, 255)
             })
         })
         .collect()
