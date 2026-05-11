@@ -6,6 +6,7 @@ edition = "2021"
 [workspace]
 
 [dependencies]
+num-complex = "*"
 
 [dependencies.cuda-core]
 git = "https://github.com/NVlabs/cuda-oxide.git"
