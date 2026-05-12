@@ -1,5 +1,19 @@
 use num_complex::Complex32;
 
+//
+
+pub trait ComplexNumber: for<'a> std::ops::Add<&'a Self, Output = Self> + Sized
+where
+    for<'a> &'a Self: std::ops::Mul<&'a Self, Output = Self>,
+{
+    fn build(re: f32, im: f32) -> Self;
+
+    fn re(&self) -> f32;
+    fn im(&self) -> f32;
+}
+
+//
+
 #[derive(Clone, Copy)]
 pub struct MyComplex {
     pub re: f32,
@@ -53,5 +67,35 @@ impl Into<Complex32> for MyComplex {
             re: self.re,
             im: self.im,
         }
+    }
+}
+
+impl ComplexNumber for MyComplex {
+    fn build(re: f32, im: f32) -> MyComplex {
+        Self { re, im }
+    }
+
+    fn re(&self) -> f32 {
+        self.re
+    }
+
+    fn im(&self) -> f32 {
+        self.im
+    }
+}
+
+//
+
+impl ComplexNumber for Complex32 {
+    fn build(re: f32, im: f32) -> Complex32 {
+        Complex32 { re, im }
+    }
+
+    fn re(&self) -> f32 {
+        self.re
+    }
+
+    fn im(&self) -> f32 {
+        self.im
     }
 }

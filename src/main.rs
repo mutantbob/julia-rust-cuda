@@ -1,4 +1,4 @@
-use crate::exp::MyComplex;
+use crate::exp::{ComplexNumber, MyComplex};
 use cuda_core::{CudaContext, DeviceBuffer, LaunchConfig};
 use cuda_device::cuda_module;
 use num_complex::{Complex, Complex32};
@@ -31,12 +31,16 @@ impl JuliaGrid {
     }
 }
 
-pub fn escaped(z: &MyComplex) -> bool {
-    z.re < -2.0 || z.re > 2.0 || z.im < -2.0 || z.im > 2.0
+pub fn escaped<C: ComplexNumber>(z: &C) -> bool
+where
+    for<'a> &'a C: std::ops::Mul<&'a C, Output = C>,
+{
+    z.re() < -2.0 || z.re() > 2.0 || z.im() < -2.0 || z.im() > 2.0
 }
 
 #[cuda_module]
 mod kernels {
+    use crate::exp::ComplexNumber;
     use crate::JuliaGrid;
     use crate::MyComplex;
     use cuda_device::{kernel, thread, DisjointSlice};
@@ -70,14 +74,17 @@ mod kernels {
         if let Some(rval) = dst.get_mut(idx) {
             let (x, y) = grid.xy_for(col, row);
 
-            let c = MyComplex::new(cx, cy);
-            let z = MyComplex::new(x, y);
+            let c = MyComplex::build(cx, cy);
+            let z = MyComplex::build(x, y);
             *rval = super::count_julia(z, c, COUNT);
         }
     }
 }
 
-pub fn count_julia(mut z: MyComplex, c: MyComplex, max_iter: u32) -> u32 {
+pub fn count_julia<C: ComplexNumber>(mut z: C, c: C, max_iter: u32) -> u32
+where
+    for<'a> &'a C: std::ops::Mul<&'a C, Output = C>,
+{
     for i in 0..max_iter {
         if escaped(&z) {
             // println!("escaped {z:?} after {i} cycles");
@@ -93,7 +100,10 @@ pub fn count_julia(mut z: MyComplex, c: MyComplex, max_iter: u32) -> u32 {
     max_iter
 }
 
-fn julia_one_iter(c: &MyComplex, z: &MyComplex) -> MyComplex {
+fn julia_one_iter<C: ComplexNumber>(c: &C, z: &C) -> C
+where
+    for<'a> &'a C: std::ops::Mul<&'a C, Output = C>,
+{
     z * z + c
 }
 
