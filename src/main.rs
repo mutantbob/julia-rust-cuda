@@ -37,31 +37,13 @@ pub fn escaped(z: &MyComplex) -> bool {
 }
 
 #[kernel]
-pub fn julia(
-    mut dst: DisjointSlice<u32>,
-    ncols: usize,
-    x0: f32,
-    y0: f32,
-    dx: f32,
-    dy: f32,
-    cx: f32,
-    cy: f32,
-) {
+pub fn julia(mut dst: DisjointSlice<u32>, grid: &JuliaGrid, cx: f32, cy: f32) {
     let idx = thread::index_1d();
     const COUNT: u32 = 256;
 
-    let grid = JuliaGrid {
-        ncols,
-        nrows: 0,
-        dx,
-        dy,
-        x0,
-        y0,
-    };
-
     if let Some(rval) = dst.get_mut(idx) {
-        let col = idx.get() % ncols;
-        let row = idx.get() / ncols;
+        let col = idx.get() % grid.ncols;
+        let row = idx.get() / grid.ncols;
         let (x, y) = grid.xy_for(col, row);
 
         let c = MyComplex::new(cx, cy);
@@ -148,18 +130,15 @@ fn on_gpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
     println!("doot 2");
 
     cuda_launch! {
-            kernel: julia,
-            stream: stream,
-            module: module,
-            config: LaunchConfig::for_num_elems(count as u32),
-            args: [ slice_mut(c_dev),
-                grid.ncols,
-                grid.x0,
-                grid.y0, grid.dx, grid.dy,
-                cx,
-    cy,
-            ]
-        }
+        kernel: julia,
+        stream: stream,
+        module: module,
+        config: LaunchConfig::for_num_elems(count as u32),
+        args: [ slice_mut(c_dev),
+            &grid,
+            cx,cy,
+        ]
+    }
     .expect("Kernel launch failed");
 
     println!("doot 3");
