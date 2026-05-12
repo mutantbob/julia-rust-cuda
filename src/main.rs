@@ -1,7 +1,6 @@
 use crate::exp::MyComplex;
 use cuda_core::{CudaContext, DeviceBuffer, LaunchConfig};
-use cuda_device::{kernel, thread, DisjointSlice};
-use cuda_host::{cuda_launch, load_kernel_module};
+use cuda_device::cuda_module;
 use num_complex::{Complex, Complex32};
 use std::fs::File;
 use std::io::Write;
@@ -36,37 +35,45 @@ pub fn escaped(z: &MyComplex) -> bool {
     z.re < -2.0 || z.re > 2.0 || z.im < -2.0 || z.im > 2.0
 }
 
-#[kernel]
-pub fn julia(
-    mut dst: DisjointSlice<u32>,
-    ncols: usize,
-    x0: f32,
-    y0: f32,
-    dx: f32,
-    dy: f32,
-    cx: f32,
-    cy: f32,
-) {
-    let idx = thread::index_1d();
-    const COUNT: u32 = 256;
+#[cuda_module]
+mod kernels {
+    use crate::JuliaGrid;
+    use crate::MyComplex;
+    use cuda_device::{kernel, thread, DisjointSlice};
 
-    let grid = JuliaGrid {
-        ncols,
-        nrows: 0,
-        dx,
-        dy,
-        x0,
-        y0,
-    };
+    #[kernel]
+    pub fn julia(
+        mut dst: DisjointSlice<u32>,
+        ncols: usize,
+        x0: f32,
+        y0: f32,
+        dx: f32,
+        dy: f32,
+        cx: f32,
+        cy: f32,
+    ) {
+        let idx = thread::index_1d();
+        const COUNT: u32 = 256;
 
-    if let Some(rval) = dst.get_mut(idx) {
+        let grid = JuliaGrid {
+            ncols,
+            nrows: 0,
+            dx,
+            dy,
+            x0,
+            y0,
+        };
+
+        // I wish get_mut did not consume idx
         let col = idx.get() % ncols;
         let row = idx.get() / ncols;
-        let (x, y) = grid.xy_for(col, row);
+        if let Some(rval) = dst.get_mut(idx) {
+            let (x, y) = grid.xy_for(col, row);
 
-        let c = MyComplex::new(cx, cy);
-        let z = MyComplex::new(x, y);
-        *rval = count_julia(z, c, COUNT);
+            let c = MyComplex::new(cx, cy);
+            let z = MyComplex::new(x, y);
+            *rval = super::count_julia(z, c, COUNT);
+        }
     }
 }
 
@@ -143,24 +150,24 @@ fn on_gpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
     // Loads `julia-rust-cuda.ptx` directly when cuda-oxide produced PTX, or builds a
     // cubin from `julia-rust-cuda.ll` when cuda-oxide auto-detected libdevice math
     // (`sin`, `pow`, `exp`, ...). Requires CUDA Toolkit on the host.
-    let module = load_kernel_module(&ctx, "julia_rust_cuda").expect("Failed to load kernel module");
+    let module = kernels::load(&ctx).expect("Failed to load kernel module");
 
     println!("doot 2");
 
-    cuda_launch! {
-            kernel: julia,
-            stream: stream,
-            module: module,
-            config: LaunchConfig::for_num_elems(count as u32),
-            args: [ slice_mut(c_dev),
-                grid.ncols,
-                grid.x0,
-                grid.y0, grid.dx, grid.dy,
-                cx,
-    cy,
-            ]
-        }
-    .expect("Kernel launch failed");
+    module
+        .julia(
+            &stream,
+            LaunchConfig::for_num_elems(count as u32),
+            &mut c_dev,
+            grid.ncols,
+            grid.x0,
+            grid.y0,
+            grid.dx,
+            grid.dy,
+            cx,
+            cy,
+        )
+        .expect("Kernel launch failed");
 
     println!("doot 3");
 
