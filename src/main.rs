@@ -1,11 +1,9 @@
 use crate::exp::MyComplex;
 use cuda_core::{CudaContext, DeviceBuffer, LaunchConfig};
 use cuda_device::cuda_module;
-use num_complex::{Complex, Complex32};
 use std::fs::File;
 use std::io::Write;
-
-// type MyComplex = Complex32;
+// type MyComplex = num_complex::Complex32;
 
 pub mod exp;
 
@@ -41,9 +39,10 @@ mod kernels {
     use crate::MyComplex;
     use cuda_device::{kernel, thread, DisjointSlice};
 
+    #[allow(clippy::too_many_arguments)]
     #[kernel]
     pub fn julia(
-        mut dst: DisjointSlice<u32>,
+        mut dst: DisjointSlice<usize>,
         ncols: usize,
         x0: f32,
         y0: f32,
@@ -51,9 +50,9 @@ mod kernels {
         dy: f32,
         cx: f32,
         cy: f32,
+        max_iter: usize,
     ) {
         let idx = thread::index_1d();
-        const COUNT: u32 = 256;
 
         let grid = JuliaGrid {
             ncols,
@@ -72,12 +71,12 @@ mod kernels {
 
             let c = MyComplex::new(cx, cy);
             let z = MyComplex::new(x, y);
-            *rval = super::count_julia(z, c, COUNT);
+            *rval = super::count_julia(z, c, max_iter);
         }
     }
 }
 
-pub fn count_julia(mut z: MyComplex, c: MyComplex, max_iter: u32) -> u32 {
+pub fn count_julia(mut z: MyComplex, c: MyComplex, max_iter: usize) -> usize {
     for i in 0..max_iter {
         if escaped(&z) {
             // println!("escaped {z:?} after {i} cycles");
@@ -97,13 +96,14 @@ fn julia_one_iter(c: &MyComplex, z: &MyComplex) -> MyComplex {
     z * z + c
 }
 
-fn julia_one_iter_orig(c: &Complex32, z: &Complex32) -> Complex32 {
-    let x1 = z.re * z.re - z.im * z.im + c.re;
-    let y1 = z.re * z.im + z.im * z.re + c.im;
-    Complex::new(x1, y1)
+fn main() {
+    match 2 {
+        2 => animation1::animation1(),
+        _ => still1(),
+    };
 }
 
-fn main() {
+fn still1() {
     let grid = {
         let r = 512;
         let ncols = r;
@@ -122,7 +122,7 @@ fn main() {
     let cx = -0.5125;
     let cy = 0.5213;
     let c_host = if true {
-        on_gpu(&grid, cx, cy)
+        on_gpu(&grid, cx, cy, 256)
     } else {
         on_cpu(&grid, cx, cy)
     };
@@ -137,7 +137,76 @@ fn main() {
     }
 }
 
-fn on_gpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
+mod animation1 {
+    use crate::{colormap, on_gpu, JuliaGrid};
+    use std::fs::File;
+
+    pub fn animation1() {
+        let mut radius = 2.0;
+
+        let julia_c = (-0.5125, 0.5213);
+        let center = (0.0, 0.0);
+
+        for i in 0..10 {
+            compute_one_frame(i, julia_c, center, radius);
+            radius *= 0.5;
+        }
+    }
+
+    fn compute_one_frame(i: i32, julia_c: (f32, f32), center: (f32, f32), radius: f32) {
+        let width = 512;
+        let delta = radius * 2.0 / width as f32;
+        let grid = JuliaGrid {
+            ncols: width,
+            nrows: width,
+            dx: delta,
+            dy: delta,
+            x0: center.0 - radius,
+            y0: center.1 - radius,
+        };
+        let counts = on_gpu(&grid, julia_c.0, julia_c.1, 1024);
+
+        let rgbs = colormap(&counts);
+
+        let ofname = format!("/tmp/julia-1/image{i}.png");
+
+        let f = File::create(ofname).unwrap();
+        let mut encoder = png::Encoder::new(f, width as u32, width as u32);
+        encoder.set_color(png::ColorType::Rgb);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&rgbs).unwrap();
+    }
+}
+
+pub fn colormap(counts: &[usize]) -> Vec<u8> {
+    counts.iter().copied().flat_map(color_for).collect()
+}
+
+pub fn color_for(count: usize) -> [u8; 3] {
+    const COLORS: [[u8; 3]; 6] = [
+        [255, 0, 0],
+        [255, 255, 0],
+        [0, 255, 0],
+        [0, 255, 255],
+        [0, 0, 255],
+        [255, 0, 255],
+    ];
+
+    const Q: usize = 20;
+    let phase = count % (COLORS.len() * Q);
+    let block = phase / Q;
+    let small = phase % Q;
+    let c1 = &COLORS[block];
+    let c2 = &COLORS[(block + 1) % COLORS.len()];
+    [
+        ((c2[0] as usize * small + c1[0] as usize * (Q - small)) / Q) as u8,
+        ((c2[1] as usize * small + c1[1] as usize * (Q - small)) / Q) as u8,
+        ((c2[2] as usize * small + c1[2] as usize * (Q - small)) / Q) as u8,
+    ]
+}
+
+fn on_gpu(grid: &JuliaGrid, cx: f32, cy: f32, max_iter: usize) -> Vec<usize> {
     let ctx = CudaContext::new(0).expect("Failed to create CUDA context");
     let stream = ctx.default_stream();
 
@@ -145,7 +214,7 @@ fn on_gpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
 
     let count: usize = grid.cell_count();
 
-    let mut c_dev = DeviceBuffer::<u32>::zeroed(&stream, count).unwrap();
+    let mut c_dev = DeviceBuffer::<usize>::zeroed(&stream, count).unwrap();
 
     // Loads `julia-rust-cuda.ptx` directly when cuda-oxide produced PTX, or builds a
     // cubin from `julia-rust-cuda.ll` when cuda-oxide auto-detected libdevice math
@@ -166,6 +235,7 @@ fn on_gpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
             grid.dy,
             cx,
             cy,
+            max_iter,
         )
         .expect("Kernel launch failed");
 
@@ -174,7 +244,7 @@ fn on_gpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
     c_dev.to_host_vec(&stream).unwrap()
 }
 
-fn on_cpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
+fn on_cpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<usize> {
     let c = MyComplex::new(cx, cy);
     (0..grid.nrows)
         .flat_map(|row| {
@@ -187,7 +257,7 @@ fn on_cpu(grid: &JuliaGrid, cx: f32, cy: f32) -> Vec<u32> {
 }
 
 fn write_to_pgm(
-    greys: &[u32],
+    greys: &[usize],
     width: usize,
     height: usize,
     ofname: &str,
@@ -196,7 +266,7 @@ fn write_to_pgm(
     writeln!(&mut f, "P5\n{} {}\n255\n", width, height)?;
     for g in greys {
         let g8 = [(*g).clamp(0, 255) as u8];
-        f.write(&g8)?;
+        f.write_all(&g8)?;
     }
     Ok(())
 }

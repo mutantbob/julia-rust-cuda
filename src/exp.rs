@@ -15,6 +15,7 @@ impl MyComplex {
 impl std::ops::Mul for MyComplex {
     type Output = Self;
 
+    #[allow(clippy::op_ref)]
     fn mul(self, rhs: Self) -> Self::Output {
         (&self) * &rhs
     }
@@ -46,12 +47,21 @@ impl From<&Complex32> for MyComplex {
         Self { re: c.re, im: c.im }
     }
 }
-
+/*
 impl Into<Complex32> for MyComplex {
     fn into(self) -> Complex32 {
         Complex32 {
             re: self.re,
             im: self.im,
+        }
+    }
+}
+*/
+impl From<MyComplex> for Complex32 {
+    fn from(value: MyComplex) -> Self {
+        Complex32 {
+            re: value.re,
+            im: value.im,
         }
     }
 }

@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "adler2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -76,6 +82,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc32fast"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9481c1c90cbf2ac953f07c8d4a58aa3945c425b7185c9154d67a65e4230da511"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "crunchy"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -84,7 +99,7 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 [[package]]
 name = "cuda-bindings"
 version = "0.1.0"
-source = "git+https://github.com/NVlabs/cuda-oxide.git#aef2b4fefab6230bfea46d483c0b8bcbb63c089d"
+source = "git+https://github.com/NVlabs/cuda-oxide.git#c8b3103cb1ffe1664aa1458b467ebc2206d5d82a"
 dependencies = [
  "bindgen",
 ]
@@ -92,16 +107,18 @@ dependencies = [
 [[package]]
 name = "cuda-core"
 version = "0.1.0"
-source = "git+https://github.com/NVlabs/cuda-oxide.git#aef2b4fefab6230bfea46d483c0b8bcbb63c089d"
+source = "git+https://github.com/NVlabs/cuda-oxide.git#c8b3103cb1ffe1664aa1458b467ebc2206d5d82a"
 dependencies = [
  "anyhow",
  "cuda-bindings",
+ "half",
+ "oxide-artifacts",
 ]
 
 [[package]]
 name = "cuda-device"
 version = "0.1.0"
-source = "git+https://github.com/NVlabs/cuda-oxide.git#aef2b4fefab6230bfea46d483c0b8bcbb63c089d"
+source = "git+https://github.com/NVlabs/cuda-oxide.git#c8b3103cb1ffe1664aa1458b467ebc2206d5d82a"
 dependencies = [
  "cuda-macros",
 ]
@@ -109,7 +126,7 @@ dependencies = [
 [[package]]
 name = "cuda-host"
 version = "0.1.0"
-source = "git+https://github.com/NVlabs/cuda-oxide.git#aef2b4fefab6230bfea46d483c0b8bcbb63c089d"
+source = "git+https://github.com/NVlabs/cuda-oxide.git#c8b3103cb1ffe1664aa1458b467ebc2206d5d82a"
 dependencies = [
  "cuda-core",
  "cuda-macros",
@@ -122,7 +139,7 @@ dependencies = [
 [[package]]
 name = "cuda-macros"
 version = "0.1.0"
-source = "git+https://github.com/NVlabs/cuda-oxide.git#aef2b4fefab6230bfea46d483c0b8bcbb63c089d"
+source = "git+https://github.com/NVlabs/cuda-oxide.git#c8b3103cb1ffe1664aa1458b467ebc2206d5d82a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -135,6 +152,37 @@ name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
+
+[[package]]
+name = "equivalent"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
+
+[[package]]
+name = "fdeflate"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e6853b52649d4ac5c0bd02320cddc5ba956bdb407c4b75a2c6b75bf51500f8c"
+dependencies = [
+ "simd-adler32",
+]
+
+[[package]]
+name = "flate2"
+version = "1.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "843fba2746e448b37e26a819579957415c8cef339bf08564fe8b7ddbd959573c"
+dependencies = [
+ "crc32fast",
+ "miniz_oxide",
+]
+
+[[package]]
+name = "foldhash"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "glob"
@@ -154,6 +202,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.15.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
+dependencies = [
+ "foldhash",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+
+[[package]]
+name = "indexmap"
+version = "2.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
+dependencies = [
+ "equivalent",
+ "hashbrown 0.17.1",
+]
+
+[[package]]
 name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -170,6 +243,7 @@ dependencies = [
  "cuda-device",
  "cuda-host",
  "num-complex",
+ "png",
 ]
 
 [[package]]
@@ -191,7 +265,7 @@ dependencies = [
 [[package]]
 name = "libnvvm-sys"
 version = "0.1.0"
-source = "git+https://github.com/NVlabs/cuda-oxide.git#aef2b4fefab6230bfea46d483c0b8bcbb63c089d"
+source = "git+https://github.com/NVlabs/cuda-oxide.git#c8b3103cb1ffe1664aa1458b467ebc2206d5d82a"
 dependencies = [
  "libloading",
  "thiserror",
@@ -214,6 +288,16 @@ name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
+name = "miniz_oxide"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
+dependencies = [
+ "adler2",
+ "simd-adler32",
+]
 
 [[package]]
 name = "nom"
@@ -246,10 +330,43 @@ dependencies = [
 [[package]]
 name = "nvjitlink-sys"
 version = "0.1.0"
-source = "git+https://github.com/NVlabs/cuda-oxide.git#aef2b4fefab6230bfea46d483c0b8bcbb63c089d"
+source = "git+https://github.com/NVlabs/cuda-oxide.git#c8b3103cb1ffe1664aa1458b467ebc2206d5d82a"
 dependencies = [
  "libloading",
  "thiserror",
+]
+
+[[package]]
+name = "object"
+version = "0.36.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62948e14d923ea95ea2c7c86c71013138b66525b86bdc08d2dcc262bdb497b87"
+dependencies = [
+ "crc32fast",
+ "hashbrown 0.15.5",
+ "indexmap",
+ "memchr",
+]
+
+[[package]]
+name = "oxide-artifacts"
+version = "0.1.0"
+source = "git+https://github.com/NVlabs/cuda-oxide.git#c8b3103cb1ffe1664aa1458b467ebc2206d5d82a"
+dependencies = [
+ "object",
+]
+
+[[package]]
+name = "png"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61"
+dependencies = [
+ "bitflags",
+ "crc32fast",
+ "fdeflate",
+ "flate2",
+ "miniz_oxide",
 ]
 
 [[package]]
@@ -312,7 +429,7 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 [[package]]
 name = "reserved-oxide-symbols"
 version = "0.1.0"
-source = "git+https://github.com/NVlabs/cuda-oxide.git#aef2b4fefab6230bfea46d483c0b8bcbb63c089d"
+source = "git+https://github.com/NVlabs/cuda-oxide.git#c8b3103cb1ffe1664aa1458b467ebc2206d5d82a"
 
 [[package]]
 name = "rustc-hash"
@@ -325,6 +442,12 @@ name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+
+[[package]]
+name = "simd-adler32"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "703d5c7ef118737c72f1af64ad2f6f8c5e1921f818cdcb97b8fe6fc69bf66214"
 
 [[package]]
 name = "syn"
